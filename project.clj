@@ -4,7 +4,8 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
-                 [tarsos-dsp/tarsos-dsp "2.4"]
+                 [org.clojure/core.async "0.3.443"]
+                 ;;[tarsos-dsp/tarsos-dsp "2.4"]
                  [ddf/minim "2.2.2"]
                  [com.github.wendykierp/JTransforms "3.1"]]
   :main ^:skip-aot ora.core
