@@ -98,6 +98,7 @@
         (let [num-bytes-read (.read data-line buf 0 (alength buf))]
           ;;(.write ^ByteArrayOutputStream (a :out) buf 0 num-bytes-read)
           (doseq [idx (range num-bytes-read)]
+            ;; Should use "put!"?
             (a/>!! (a :out) (aget buf idx))))
         (recur data-line buf))
       (do
