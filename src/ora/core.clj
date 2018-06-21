@@ -29,13 +29,21 @@
                ;;(/ (double Short/MAX_VALUE))
                ;;short
                double))
+(comment
+  (defn run-fft
+    [^doubles samples]
+    (let [fft (DoubleFFT_1D. (alength samples))
+          data (double-array (* (alength samples) 2))]
+      (System/arraycopy samples 0 data 0 (alength samples))
+      (.realForwardFull fft ^doubles data)
+      data)))
 
 (defn run-fft
   [^doubles samples]
   (let [fft (DoubleFFT_1D. (alength samples))
-        data (double-array (* (alength samples) 2))]
+        data (double-array (* (alength samples) 1))]
     (System/arraycopy samples 0 data 0 (alength samples))
-    (.realForwardFull fft ^doubles data)
+    (.realForward fft ^doubles data)
     data))
 
 (defn collect-window
@@ -102,10 +110,13 @@
         window-in (create-window-chan window-size in)]
     (a/go-loop [window (<! window-in)]
       (let [^doubles fft-output (run-fft window)
-            ;;fft-nums (map (fn [[r i]] (Complex. r i)) (partition 2 fft-output))
             fft-nums (convert-to-complex fft-output)
-            [max-idx ^Complex max-item] (find-max-with-index fft-nums)]
-        (swap! draw-state assoc :max-idx max-idx)
+            [max-idx ^Complex max-item] (find-max-with-index fft-nums)
+            magnitudes (doall (map (fn [^Complex c] (Math/abs (.imag c))) fft-nums))]
+        
+        (swap! draw-state assoc
+               :max-idx max-idx
+               :magnitudes magnitudes)
         (recur (<! window-in))))))
 
 (defn -main
@@ -116,18 +127,17 @@
 
 (defn setup []
   (q/frame-rate 30)
-  (q/background 200))
+  (q/background 0))
 
-(defn draw []
+(defn draw-max
+  []
   (let [max-idx (@draw-state :max-idx)]
-    (q/stroke (/ max-idx 255 255 255 10))
+    (q/stroke (min max-idx 255) 255 (/ 255 (max max-idx 1)) 10)
     (q/stroke-weight 3)
     (q/fill (/ 255 (max max-idx 1))
             (min 255 (+ 30 (/ 255 (max max-idx 1))))
             (min 255 (* 160 (/ max-idx 100)))
-            ;;(max 100 (* 255 (/ 10 (max max-idx 1))))
-            70
-            )
+            70)    
 
     (let [diam (+ 50 (* 4 max-idx))
           x    (min (+ 10 (* 5 max-idx) (/ max-idx 280)) (- (q/width) 20))      
@@ -135,8 +145,30 @@
           y    (/ (q/height) 2)]
       (q/ellipse x y diam diam))))
 
-(q/defsketch example
-  :title "blam"
+(defn draw-hist
+  []
+  (let [magnitudes (doall (@draw-state :magnitudes))]
+    (q/stroke 255 255 255 0)
+    (q/stroke-weight 2)
+    (q/fill 0 0 0 30)
+    (q/rect 0 0 (q/width) (q/height))
+
+    (let [num-mags (count magnitudes)]
+      (doseq [[idx mag] (map-indexed vector magnitudes)]
+        (let [y (/ (* 2.5 mag) (q/height))
+              x (* idx (/ (q/width) num-mags))
+              diam 10]
+
+          (q/fill (* 255 (/ y (q/height))) 150 30)
+          ;;(q/ellipse x y diam diam)
+          (q/rect x 0 10 y)
+          )))))
+
+(defn draw []
+  (draw-hist))
+
+(q/defsketch scratch
+  :title "scratch"
   :settings #(q/smooth 2)
   :setup setup
   :draw draw
