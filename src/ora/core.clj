@@ -112,8 +112,10 @@
       (let [^doubles fft-output (run-fft window)
             fft-nums (convert-to-complex fft-output)
             [max-idx ^Complex max-item] (find-max-with-index fft-nums)
-            magnitudes (doall (map (fn [^Complex c] (Math/abs (.imag c))) fft-nums))]
-        
+            magnitudes (doall (map (fn [^Complex c]
+                                     (Math/sqrt (+ (Math/pow (.real c) 2)
+                                                   (Math/pow (.imag c) 2))))
+                                   (rest fft-nums)))]
         (swap! draw-state assoc
                :max-idx max-idx
                :magnitudes magnitudes)
@@ -147,21 +149,30 @@
 
 (defn draw-hist
   []
-  (let [magnitudes (doall (@draw-state :magnitudes))]
+  (let [magnitudes (doall (take 150 (drop 10 (@draw-state :magnitudes))))]
     (q/stroke 255 255 255 0)
     (q/stroke-weight 2)
-    (q/fill 0 0 0 30)
+    (q/fill 0 0 0 20)
     (q/rect 0 0 (q/width) (q/height))
 
     (let [num-mags (count magnitudes)]
       (doseq [[idx mag] (map-indexed vector magnitudes)]
-        (let [y (/ (* 2.5 mag) (q/height))
+        (let [;;y (min (q/height) (* mag 0.002))
+              y (- (q/height) (min (q/height) (* 60 (Math/log (max 0.01 (- mag 10000))))))
               x (* idx (/ (q/width) num-mags))
-              diam 10]
+              diam (* (- (q/height) y) 0.05)
+              rect-width 10]
 
-          (q/fill (* 255 (/ y (q/height))) 150 30)
-          ;;(q/ellipse x y diam diam)
-          (q/rect x 0 10 y)
+          ;;(q/fill (q/lerp-color (q/color 0 0 200 200) (q/color 0 150 0 200) (* idx 0.01)))
+          (q/fill (q/lerp-color (q/color 0 0 200 200) (q/color 0 200 0 200) (- 1 (/ y (q/height)))))
+          ;;(q/fill 100 200 175 200)
+
+          ;;;; Lines with balls
+          ;;(q/ellipse (+ x (/ rect-width 2)) y diam diam)
+          ;;(q/rect x 0 rect-width y)
+
+          ;;;; new circles
+          (q/ellipse (+ x (/ rect-width 2)) y diam diam)
           )))))
 
 (defn draw []
@@ -172,4 +183,4 @@
   :settings #(q/smooth 2)
   :setup setup
   :draw draw
-  :size [800 600])
+  :size [1280 1024])
