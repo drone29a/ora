@@ -7,6 +7,8 @@
             SourceDataLine
             DataLine
             DataLine$Info
+            Port
+            Port$Info
             AudioFormat
             AudioSystem
             Mixer
@@ -68,6 +70,61 @@
                                                 (.getName info))))
        first
        (AudioSystem/getMixer)))
+
+(defn survey-audio
+  []
+  (let [mixer-infos (AudioSystem/getMixerInfo)]
+    (for [^Mixer$Info mixer-info mixer-infos]
+      (let [^Mixer mixer (AudioSystem/getMixer mixer-info)]
+        {:mixer mixer
+         :info mixer-info
+         :name (.getName mixer-info)
+         :vendor (.getVendor mixer-info)
+         :version (.getVendor mixer-info)
+         :description (.getDescription mixer-info)
+         :target-lines (map (fn [line-info]
+                              (let [line (.getLine mixer line-info)
+                                    line-type (condp instance? line
+                                                DataLine
+                                                :data-line
+
+                                                Port
+                                                :port)
+                                    line-info (case line-type
+                                                :data-line (cast DataLine$Info line-info)
+                                                :port (cast Port$Info line-info))]
+                                {:info line-info
+                                 :line line
+                                 :type line-type
+                                 :desc (str line-info)}))
+                            (.getTargetLineInfo mixer))
+         :source-lines (map (fn [line-info]
+                              (let [line (.getLine mixer line-info)
+                                    line-type (condp instance? line
+                                                DataLine
+                                                :data-line
+
+                                                Port
+                                                :port)
+                                    line-info (case line-type
+                                                :data-line (cast DataLine$Info line-info)
+                                                :port (cast Port$Info line-info))]
+                                {:info line-info
+                                 :line line
+                                 :type line-type
+                                 :desc (str line-info)}))
+                            (.getSourceLineInfo mixer))}))))
+
+(defn print-survey
+  [survey-info]
+  (doseq [mixer survey-info]
+    (println "Mixer")
+    (clojure.pprint/pprint (select-keys mixer [:name :vendor :version :description]))
+    (println "Target Lines")
+    (clojure.pprint/pprint (map (juxt :type :desc) (:target-lines mixer)))
+    (println "Source Lines")
+    (clojure.pprint/pprint (map (juxt :type :desc) (:source-lines mixer)))
+    (println (clojure.string/join (repeat 10 "=")))))
 
 (defn get-default-mixer
   ^Mixer
